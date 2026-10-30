@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>みんなで作るハザードマップ - 大阪公立大高専周辺</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        /* カスタムマーカー用のスタイル */
+        .custom-marker-icon {
+            background: none;
+            border: none;
+        }
+        .marker-pin {
+            width: 32px;
+            height: 32px;
+            border-radius: 50% 50% 50% 0;
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -16px 0 0 -16px;
+            box-shadow: -2px 2px 6px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .marker-pin::after {
+            content: '';
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            position: absolute;
+            border-radius: 50%;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        /* ポップアップのスタイル微調整 */
+        .leaflet-popup-content-wrapper {
+            border-radius: 0.75rem;
+            padding: 0;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .leaflet-popup-content {
+            margin: 0;
+            width: 260px !important;
+        }
+        .leaflet-popup-tip-container {
+            margin-top: -1px; /* 隙間を埋める */
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-indigo-700 text-white p-4 shadow-md z-20 flex justify-between items-center relative">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-indigo-800 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg md:text-xl font-bold tracking-wide">共有ハザードマップ <span class="text-xs ml-2 bg-indigo-500 px-2 py-0.5 rounded text-indigo-50">DEMO</span></h1>
+                <p class="text-xs md:text-sm text-indigo-200">大阪公立大学工業高等専門学校 周辺</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 md:gap-3">
+            <button id="line-share-btn" class="bg-[#06C755] hover:bg-[#05b34c] text-white text-xs md:text-sm px-3 py-1.5 rounded-full font-bold shadow transition-colors flex items-center gap-1.5">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M22.5 10.19C22.5 5.25 17.78 1.25 12 1.25S1.5 5.25 1.5 10.19c0 4.43 3.86 8.19 9 8.84.35.07.83.22.95.52.1.28.06.72.03 1.01l-.16 1.01c-.04.25-.19.95.83.52 1.03-.43 5.56-3.28 7.82-5.77 1.63-1.78 2.53-3.9 2.53-6.13z"/>
+                </svg>
+                <span class="hidden md:inline">LINEで共有</span>
+            </button>
+            <div id="auth-status" class="text-sm bg-indigo-800 text-indigo-100 px-2 md:px-3 py-1.5 rounded-full flex items-center gap-2 transition-colors duration-300">
+                <span class="w-2 h-2 rounded-full bg-gray-400 animate-pulse" id="auth-dot"></span>
+                <span id="auth-text" class="hidden md:inline">接続中...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Map Container -->
+    <div id="map" class="flex-1 w-full relative cursor-crosshair" style="min-height: calc(100vh - 80px);"></div>
+
+    <!-- Instruction Overlay -->
+    <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 bg-white/95 backdrop-blur px-6 py-3 rounded-full shadow-lg border border-gray-100 pointer-events-none text-sm md:text-base text-gray-700 text-center w-max max-w-[90vw] flex items-center gap-2 font-medium">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+        </svg>
+        地図をタップして情報を追加
+    </div>
+
+    <!-- Add Marker Modal (Hidden by default) -->
+    <div id="addModal" class="fixed inset-0 bg-gray-900/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-transform scale-100">
+            <div class="bg-indigo-50 px-5 py-4 border-b border-indigo-100 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                    </svg>
+                    地点情報の登録
+                </h2>
+                <button type="button" id="btn-close" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="p-5 flex-grow overflow-y-auto">
+                <div id="modal-error" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span>必須項目を正しく入力してください。</span>
+                </div>
+                
+                <form id="markerForm" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">タイトル <span class="text-red-500 text-xs">*</span></label>
+                        <input type="text" id="m-title" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm" placeholder="例: 大雨時に冠水する道路" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">カテゴリー <span class="text-red-500 text-xs">*</span></label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <!-- Danger -->
+                            <label class="cursor-pointer relative">
+                                <input type="radio" name="category" value="danger" class="peer sr-only" required>
+                                <div class="text-center p-3 rounded-xl border-2 border-gray-200 peer-checked:border-red-500 peer-checked:bg-red-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
+                                    <div class="w-5 h-5 rounded-full bg-red-500 mx-auto mb-2 shadow-sm"></div>
+                                    <span class="text-xs font-bold text-gray-700 block">危険<br><span class="text-[10px] font-normal text-gray-500">Danger</span></span>
+                                </div>
+                            </label>
+                            <!-- Caution -->
+                            <label class="cursor-pointer relative">
+                                <input type="radio" name="category" value="caution" class="peer sr-only">
+                                <div class="text-center p-3 rounded-xl border-2 border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
+                                    <div class="w-5 h-5 rounded-full bg-amber-500 mx-auto mb-2 shadow-sm"></div>
+                                    <span class="text-xs font-bold text-gray-700 block">注意<br><span class="text-[10px] font-normal text-gray-500">Caution</span></span>
+                                </div>
+                            </label>
+                            <!-- Shelter -->
+                            <label class="cursor-pointer relative">
+                                <input type="radio" name="category" value="shelter" class="peer sr-only">
+                                <div class="text-center p-3 rounded-xl border-2 border-gray-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
+                                    <div class="w-5 h-5 rounded-full bg-emerald-500 mx-auto mb-2 shadow-sm"></div>
+                                    <span class="text-xs font-bold text-gray-700 block">避難所<br><span class="text-[10px] font-normal text-gray-500">Shelter</span></span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">詳細な説明 <span class="text-red-500 text-xs">*</span></label>
+                        <textarea id="m-desc" rows="3" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm resize-none" placeholder="現地の状況を詳しく教えてください" required></textarea>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
+                <button type="button" id="btn-cancel" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition focus:outline-none focus:ring-2 focus:ring-gray-200 shadow-sm">
+                    キャンセル
+                </button>
+                <button type="button" id="btn-save" class="px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-center shadow-md hover:shadow-lg">
+                    <span id="save-spinner" class="hidden mr-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <svg id="save-icon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    投稿して共有
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK & Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global configuration variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'demo-hazard-map';
+        const fbConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "mock-key", projectId: "mock-project" 
+        };
+        const initAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Initialize Firebase
+        const app = initializeApp(fbConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Required Firestore path format for public sharing apps (RULE 1)
+        const collectionPath = `artifacts/${appId}/public/data/hazards_demo`;
+        let user = null;
+
+        // UI Elements
+        const authDot = document.getElementById('auth-dot');
+        const authText = document.getElementById('auth-text');
+        const modal = document.getElementById('addModal');
+        const btnCancel = document.getElementById('btn-cancel');
+        const btnClose = document.getElementById('btn-close');
+        const btnSave = document.getElementById('btn-save');
+        const mTitle = document.getElementById('m-title');
+        const mDesc = document.getElementById('m-desc');
+        const modalError = document.getElementById('modal-error');
+        const saveSpinner = document.getElementById('save-spinner');
+        const saveIcon = document.getElementById('save-icon');
+        const lineShareBtn = document.getElementById('line-share-btn');
+
+        // LINE Share button logic
+        if (lineShareBtn) {
+            lineShareBtn.addEventListener('click', () => {
+                const text = encodeURIComponent('【デモ版】みんなで作るハザードマップ（大阪公立大高専周辺）\n地図上の危険箇所や避難所をリアルタイムで共有しよう！\n');
+                const url = encodeURIComponent(window.location.href);
+                window.open(`https://line.me/R/msg/text/?${text}${url}`, '_blank');
+            });
+        }
+
+        // Map setup (Centered on Osaka Metropolitan University College of Technology)
+        const INITIAL_LAT = 34.7644;
+        const INITIAL_LNG = 135.6269;
+        const INITIAL_ZOOM = 16;
+        
+        let pendingLatLng = null;
+        let markersLayer = L.layerGroup();
+
+        // Initialize Leaflet map
+        const map = L.map('map', {
+            zoomControl: false // Move to bottom right
+        }).setView([INITIAL_LAT, INITIAL_LNG], INITIAL_ZOOM);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        markersLayer.addTo(map);
+
+        // Marker Colors & Labels Mapping
+        const markerStyles = {
+            danger: { color: '#ef4444', label: '危険 (Danger)', headerBg: 'bg-red-500', badgeClass: 'bg-red-100 text-red-800' },
+            caution: { color: '#f59e0b', label: '注意 (Caution)', headerBg: 'bg-amber-500', badgeClass: 'bg-amber-100 text-amber-800' },
+            shelter: { color: '#10b981', label: '避難所 (Shelter)', headerBg: 'bg-emerald-500', badgeClass: 'bg-emerald-100 text-emerald-800' }
+        };
+
+        // Create Custom DivIcon
+        function createCustomIcon(category) {
+            const color = markerStyles[category]?.color || '#6b7280';
+            return L.divIcon({
+                className: 'custom-marker-icon',
+                iconAnchor: [0, 16],
+                popupAnchor: [0, -28],
+                html: `<div class="marker-pin" style="background-color: ${color};"></div>`
+            });
+        }
+
+        // Map click event -> open modal
+        map.on('click', (e) => {
+            if (!user) return; // Prevent interaction if not auth'd
+            pendingLatLng = e.latlng;
+            openModal();
+        });
+
+        function openModal() {
+            modal.classList.remove('hidden');
+            // Reset form
+            mTitle.value = '';
+            mDesc.value = '';
+            const radios = document.getElementsByName('category');
+            radios.forEach(r => r.checked = false);
+            modalError.classList.add('hidden');
+            setTimeout(() => mTitle.focus(), 100);
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            pendingLatLng = null;
+        }
+
+        btnCancel.addEventListener('click', closeModal);
+        btnClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal(); // Click outside to close
+        });
+
+        // Save logic
+        btnSave.addEventListener('click', async () => {
+            if (!pendingLatLng || !user) return;
+
+            const title = mTitle.value.trim();
+            const desc = mDesc.value.trim();
+            const categoryChecked = document.querySelector('input[name="category"]:checked');
+
+            if (!title || !desc || !categoryChecked) {
+                modalError.classList.remove('hidden');
+                return;
+            }
+
+            const category = categoryChecked.value;
+            
+            // UI state: loading
+            modalError.classList.add('hidden');
+            btnSave.disabled = true;
+            btnCancel.disabled = true;
+            saveSpinner.classList.remove('hidden');
+            saveIcon.classList.add('hidden');
+
+            try {
+                // Add to Firestore (RULE 3: Authenticated user checked above)
+                const hazardsRef = collection(db, collectionPath);
+                await addDoc(hazardsRef, {
+                    title: title,
+                    description: desc,
+                    category: category,
+                    lat: pendingLatLng.lat,
+                    lng: pendingLatLng.lng,
+                    timestamp: new Date().toISOString(),
+                    userId: user.uid
+                });
+                closeModal();
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                modalError.querySelector('span').textContent = "保存に失敗しました。再試行してください。";
+                modalError.classList.remove('hidden');
+            } finally {
+                // Restore UI state
+                btnSave.disabled = false;
+                btnCancel.disabled = false;
+                saveSpinner.classList.add('hidden');
+                saveIcon.classList.remove('hidden');
+            }
+        });
+
+        // Generate popup HTML
+        function generatePopupContent(data) {
+            const style = markerStyles[data.category] || markerStyles.caution;
+            
+            // Basic sanitization
+            const safeTitle = (data.title || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const safeDesc = (data.description || "").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
+            const dateStr = new Date(data.timestamp).toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            
+            return `
+                <div class="w-full overflow-hidden flex flex-col">
+                    <div class="${style.headerBg} px-4 py-2 flex justify-between items-center text-white">
+                        <span class="text-xs font-bold tracking-wider">${style.label}</span>
+                        <span class="text-[10px] opacity-80">${dateStr}</span>
+                    </div>
+                    <div class="p-4 bg-white">
+                        <h3 class="font-bold text-gray-900 text-base leading-tight mb-2">${safeTitle}</h3>
+                        <p class="text-gray-600 text-sm mt-1 max-h-32 overflow-y-auto break-words leading-relaxed">${safeDesc}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize Application / Authentication
+        async function initApp() {
+            try {
+                // RULE 3: Auth before queries
+                if (initAuthToken) {
+                    await signInWithCustomToken(auth, initAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                user = auth.currentUser;
+                
+                // Update UI status
+                authDot.classList.replace('bg-gray-400', 'bg-emerald-400');
+                authText.textContent = '同期中';
+
+                // Start syncing data in real-time
+                startSync();
+
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                authDot.classList.replace('bg-gray-400', 'bg-red-500');
+                authDot.classList.remove('animate-pulse');
+                authText.textContent = 'オフライン';
+            }
+        }
+
+        // Real-time synchronization
+        function startSync() {
+            if (!user) return;
+            
+            // RULE 2: No complex queries, fetch all from collection
+            const q = query(collection(db, collectionPath));
+            
+            onSnapshot(q, (snapshot) => {
+                markersLayer.clearLayers(); // Clear existing
+                
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.lat && data.lng) {
+                        const marker = L.marker([data.lat, data.lng], {
+                            icon: createCustomIcon(data.category)
+                        });
+                        
+                        // Using bindPopup with custom options to remove default padding
+                        marker.bindPopup(generatePopupContent(data), {
+                            className: 'custom-popup',
+                            minWidth: 260
+                        });
+                        markersLayer.addLayer(marker);
+                    }
+                });
+            }, (error) => {
+                console.error("Realtime sync error: ", error); // Required error callback
+                authDot.classList.replace('bg-emerald-400', 'bg-red-500');
+                authText.textContent = '同期エラー';
+            });
+        }
+
+        // Boot up
+        initApp();
+    </script>
+</body>
+</html>
