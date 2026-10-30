@@ -106,8 +106,15 @@
             
             <!-- Instructions & Legend -->
             <div class="p-4 border-b border-gray-100 bg-gray-50 flex-shrink-0">
-                <div class="bg-indigo-50 text-indigo-800 text-sm p-3 rounded-lg flex items-start gap-2 mb-3 border border-indigo-100 shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                
+                <!-- Mode Toggle -->
+                <div class="mb-4 bg-white p-1 rounded-xl border border-gray-200 shadow-sm flex text-sm text-center relative z-20">
+                    <button id="mode-view" class="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-bold transition-all shadow-sm">閲覧モード</button>
+                    <button id="mode-add" class="flex-1 py-2 rounded-lg text-gray-500 hover:bg-gray-50 font-bold transition-all">追加モード</button>
+                </div>
+
+                <div id="mode-instruction" class="bg-indigo-50 text-indigo-800 text-xs p-3 rounded-lg flex items-start gap-2 mb-3 border border-indigo-100 shadow-sm hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                     </svg>
                     <p>マップ上の任意の場所を<strong>クリック（タップ）</strong>して、情報を登録・共有しましょう。</p>
@@ -152,12 +159,12 @@
         </aside>
 
         <!-- Map Container -->
-        <div id="map" class="flex-1 w-full order-1 md:order-2 h-[55vh] md:h-full z-0 relative cursor-crosshair"></div>
+        <div id="map" class="flex-1 w-full order-1 md:order-2 h-[55vh] md:h-full z-0 relative cursor-grab"></div>
     </main>
 
     <!-- Add Marker Modal (Hidden by default) -->
-    <div id="addModal" class="fixed inset-0 bg-gray-900/60 hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transform transition-transform scale-100">
+    <div id="addModal" class="fixed inset-0 bg-gray-900/60 hidden z-[1000] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col transform transition-transform scale-100">
             <div class="bg-indigo-50 px-5 py-4 border-b border-indigo-100 flex justify-between items-center">
                 <h2 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
@@ -172,7 +179,7 @@
                 </button>
             </div>
             
-            <div class="p-5 flex-grow overflow-y-auto">
+            <div class="p-5 flex-grow overflow-y-auto no-scrollbar">
                 <div id="modal-error" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
@@ -180,10 +187,28 @@
                     <span>必須項目を正しく入力してください。</span>
                 </div>
                 
-                <form id="markerForm" class="space-y-5">
+                <form id="markerForm" class="space-y-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">タイトル <span class="text-red-500 text-xs">*</span></label>
                         <input type="text" id="m-title" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm" placeholder="例: 大雨時に冠水する道路" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">種類 <span class="text-red-500 text-xs">*</span></label>
+                            <select id="m-type" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="災害">災害</option>
+                                <option value="日常">日常</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">危険度 <span class="text-red-500 text-xs">*</span></label>
+                            <select id="m-danger-level" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="高">高</option>
+                                <option value="中">中</option>
+                                <option value="低">低</option>
+                            </select>
+                        </div>
                     </div>
                     
                     <div>
@@ -192,25 +217,25 @@
                             <!-- Danger -->
                             <label class="cursor-pointer relative">
                                 <input type="radio" name="category" value="danger" class="peer sr-only" required>
-                                <div class="text-center p-3 rounded-xl border-2 border-gray-200 peer-checked:border-red-500 peer-checked:bg-red-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
-                                    <div class="w-5 h-5 rounded-full bg-red-500 mx-auto mb-2 shadow-sm"></div>
-                                    <span class="text-xs font-bold text-gray-700 block">危険<br><span class="text-[10px] font-normal text-gray-500">Danger</span></span>
+                                <div class="text-center p-2 rounded-xl border-2 border-gray-200 peer-checked:border-red-500 peer-checked:bg-red-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
+                                    <div class="w-4 h-4 rounded-full bg-red-500 mx-auto mb-1 shadow-sm"></div>
+                                    <span class="text-xs font-bold text-gray-700 block">危険</span>
                                 </div>
                             </label>
                             <!-- Caution -->
                             <label class="cursor-pointer relative">
                                 <input type="radio" name="category" value="caution" class="peer sr-only">
-                                <div class="text-center p-3 rounded-xl border-2 border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
-                                    <div class="w-5 h-5 rounded-full bg-amber-500 mx-auto mb-2 shadow-sm"></div>
-                                    <span class="text-xs font-bold text-gray-700 block">注意<br><span class="text-[10px] font-normal text-gray-500">Caution</span></span>
+                                <div class="text-center p-2 rounded-xl border-2 border-gray-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
+                                    <div class="w-4 h-4 rounded-full bg-amber-500 mx-auto mb-1 shadow-sm"></div>
+                                    <span class="text-xs font-bold text-gray-700 block">注意</span>
                                 </div>
                             </label>
                             <!-- Shelter -->
                             <label class="cursor-pointer relative">
                                 <input type="radio" name="category" value="shelter" class="peer sr-only">
-                                <div class="text-center p-3 rounded-xl border-2 border-gray-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
-                                    <div class="w-5 h-5 rounded-full bg-emerald-500 mx-auto mb-2 shadow-sm"></div>
-                                    <span class="text-xs font-bold text-gray-700 block">避難所<br><span class="text-[10px] font-normal text-gray-500">Shelter</span></span>
+                                <div class="text-center p-2 rounded-xl border-2 border-gray-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 transition hover:bg-gray-50 shadow-sm peer-checked:shadow-md">
+                                    <div class="w-4 h-4 rounded-full bg-emerald-500 mx-auto mb-1 shadow-sm"></div>
+                                    <span class="text-xs font-bold text-gray-700 block">避難所</span>
                                 </div>
                             </label>
                         </div>
@@ -218,7 +243,12 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">詳細な説明 <span class="text-red-500 text-xs">*</span></label>
-                        <textarea id="m-desc" rows="3" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm resize-none" placeholder="現地の状況を詳しく教えてください" required></textarea>
+                        <textarea id="m-desc" rows="2" class="w-full bg-gray-50 border border-gray-300 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm resize-none" placeholder="現地の状況を詳しく教えてください" required></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">現地の写真 (任意)</label>
+                        <input type="file" id="m-image" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition">
                     </div>
                 </form>
             </div>
@@ -268,13 +298,48 @@
         const btnClose = document.getElementById('btn-close');
         const btnSave = document.getElementById('btn-save');
         const mTitle = document.getElementById('m-title');
+        const mType = document.getElementById('m-type');
+        const mDangerLevel = document.getElementById('m-danger-level');
         const mDesc = document.getElementById('m-desc');
+        const mImage = document.getElementById('m-image');
         const modalError = document.getElementById('modal-error');
         const saveSpinner = document.getElementById('save-spinner');
         const saveIcon = document.getElementById('save-icon');
         const lineShareBtn = document.getElementById('line-share-btn');
         const markerListContainer = document.getElementById('marker-list');
         const listCount = document.getElementById('list-count');
+        const mapEl = document.getElementById('map');
+        const modeViewBtn = document.getElementById('mode-view');
+        const modeAddBtn = document.getElementById('mode-add');
+        const modeInstruction = document.getElementById('mode-instruction');
+
+        let currentMode = 'view'; // 'view' | 'add'
+
+        // Mode Switch Logic
+        function switchMode(mode) {
+            currentMode = mode;
+            if (mode === 'view') {
+                modeViewBtn.classList.replace('text-gray-500', 'text-white');
+                modeViewBtn.classList.replace('hover:bg-gray-50', 'bg-indigo-600');
+                modeViewBtn.classList.add('shadow-sm');
+                modeAddBtn.classList.replace('text-white', 'text-gray-500');
+                modeAddBtn.classList.replace('bg-indigo-600', 'hover:bg-gray-50');
+                modeAddBtn.classList.remove('shadow-sm');
+                mapEl.classList.replace('cursor-crosshair', 'cursor-grab');
+                modeInstruction.classList.add('hidden');
+            } else {
+                modeAddBtn.classList.replace('text-gray-500', 'text-white');
+                modeAddBtn.classList.replace('hover:bg-gray-50', 'bg-indigo-600');
+                modeAddBtn.classList.add('shadow-sm');
+                modeViewBtn.classList.replace('text-white', 'text-gray-500');
+                modeViewBtn.classList.replace('bg-indigo-600', 'hover:bg-gray-50');
+                modeViewBtn.classList.remove('shadow-sm');
+                mapEl.classList.replace('cursor-grab', 'cursor-crosshair');
+                modeInstruction.classList.remove('hidden');
+            }
+        }
+        modeViewBtn.addEventListener('click', () => switchMode('view'));
+        modeAddBtn.addEventListener('click', () => switchMode('add'));
 
         // LINE Share button logic
         if (lineShareBtn) {
@@ -327,9 +392,9 @@
             });
         }
 
-        // Map click event -> open modal
+        // Map click event -> open modal (Only in Add Mode)
         map.on('click', (e) => {
-            if (!user) return; // Prevent interaction if not auth'd
+            if (!user || currentMode !== 'add') return;
             pendingLatLng = e.latlng;
             openModal();
         });
@@ -343,6 +408,7 @@
             modal.classList.remove('hidden');
             mTitle.value = '';
             mDesc.value = '';
+            mImage.value = '';
             const radios = document.getElementsByName('category');
             radios.forEach(r => r.checked = false);
             modalError.classList.add('hidden');
@@ -360,13 +426,40 @@
             if (e.target === modal) closeModal(); // Click outside to close
         });
 
+        // 画像の圧縮処理 (Base64化してFirestoreに保存可能にする)
+        async function compressImage(file) {
+            if (!file) return null;
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 400; // Firebase保存容量を抑えるためのリサイズ
+                        let scale = MAX_WIDTH / img.width;
+                        if (scale > 1) scale = 1;
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
         // Save logic
         btnSave.addEventListener('click', async () => {
             if (!pendingLatLng || !user) return;
 
             const title = mTitle.value.trim();
             const desc = mDesc.value.trim();
+            const typeVal = mType.value;
+            const dangerLevelVal = mDangerLevel.value;
             const categoryChecked = document.querySelector('input[name="category"]:checked');
+            const file = mImage.files[0];
 
             if (!title || !desc || !categoryChecked) {
                 modalError.classList.remove('hidden');
@@ -382,18 +475,28 @@
             saveIcon.classList.add('hidden');
 
             try {
+                // 画像を圧縮 (Base64)
+                let base64Image = null;
+                if (file) {
+                    base64Image = await compressImage(file);
+                }
+
                 // Add to Firestore (RULE 3: Authenticated user checked above)
                 const hazardsRef = collection(db, collectionPath);
                 await addDoc(hazardsRef, {
                     title: title,
                     description: desc,
+                    incidentType: typeVal,
+                    dangerLevel: dangerLevelVal,
                     category: category,
+                    imageData: base64Image,
                     lat: pendingLatLng.lat,
                     lng: pendingLatLng.lng,
                     timestamp: new Date().toISOString(),
                     userId: user.uid
                 });
                 closeModal();
+                switchMode('view'); // 登録後は自動的に閲覧モードに戻す
             } catch (error) {
                 console.error("Error adding document: ", error);
                 modalError.querySelector('span').textContent = "保存に失敗しました。再試行してください。";
@@ -415,13 +518,18 @@
             
             return `
                 <div class="w-full overflow-hidden flex flex-col">
+                    ${data.imageData ? `<img src="${data.imageData}" class="w-full h-32 object-cover border-b border-gray-100" />` : ''}
                     <div class="${style.headerBg} px-4 py-2 flex justify-between items-center text-white">
                         <span class="text-xs font-bold tracking-wider">${style.label}</span>
                         <span class="text-[10px] opacity-80">${dateStr}</span>
                     </div>
                     <div class="p-4 bg-white">
+                        <div class="flex gap-2 mb-2 text-[10px] font-bold">
+                            <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${data.incidentType || '災害'}</span>
+                            <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">危険度: ${data.dangerLevel || '未設定'}</span>
+                        </div>
                         <h3 class="font-bold text-gray-900 text-base leading-tight mb-2">${safeTitle}</h3>
-                        <p class="text-gray-600 text-sm mt-1 max-h-32 overflow-y-auto break-words leading-relaxed">${safeDesc}</p>
+                        <p class="text-gray-600 text-sm mt-1 max-h-24 overflow-y-auto break-words leading-relaxed">${safeDesc}</p>
                     </div>
                 </div>
             `;
